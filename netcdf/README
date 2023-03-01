@@ -1,0 +1,3 @@
+- IOnet.F90 is for writing cubes with one single variable
+
+-IOnetcube.F90 is for reading in the .nc files from the simulation

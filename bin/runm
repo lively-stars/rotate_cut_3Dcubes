@@ -1,0 +1,8 @@
+#!/bin/bash
+folder="./"
+number="044000"
+./cubeconv.exe<<EOF> out  
+"$folder"
+"$number"
+"./header.044000"
+EOF

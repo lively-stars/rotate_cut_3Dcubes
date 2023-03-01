@@ -1,0 +1,11 @@
+!--- control file for calculations : 
+5      !--1 is binary, 2 is mpi read, 3 is fits files
+1      ! rotation on/ off (1/ 0 )
+0.2    ! viewing angle mu
+0      ! calculate tau200 on/off
+0      ! interpolation onto tau rosseland girf on/off
+-9.5  0.125 2.0   ! starting tau rosseland  ! tau step ! final tau rosseland 
+0      ! if the pivot point needs to be set manually, then her in cm 
+1            ! 0 output format in .nc, if 1, strucutre.dat file in atlas fromat is writen 
+
+
