@@ -82,6 +82,11 @@
              newrho(i,k,j)  = ((rho(i, xn, z_l)) * (1.0d0-x_f) + x_f*(rho(i, xnp,  z_l))) *(1.0d0- z_f)
              newrho(i,k,j)  = newrho(i,k,j) +  z_f*((rho(i, xn, z_l+1))*(1.0d0-x_f)+ x_f*(rho(i, xnp,z_l+1)))
 
+#ifdef VELO
+             newVtot(i,k,j)  = ((Vtot(i, xn, z_l)) * (1.0d0-x_f) + x_f*(Vtot(i, xnp,  z_l))) *(1.0d0- z_f)
+             newVtot(i,k,j)  = newVtot(i,k,j) +  z_f*((Vtot(i, xn, z_l+1))*(1.0d0-x_f)+ x_f*(Vtot(i, xnp,z_l+1)))
+#endif 
+
             znew = zold + dz*(j-1)*1.0d-5 
 
            end do

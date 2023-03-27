@@ -3,7 +3,7 @@ FC= mpif90
 PROG=testcube
 
 #ifort preprocessor flags
-FPPFLAGS = "-DMPIF" 
+FPPFLAGS = "-DMPIF -DVELO" 
 FFLAGS = "-c -traceback -no-wrap-margin  -heap-arrays -check bounds" 
 #  -stand f90  -assume realloc_lhs  -check all  -traceback   -fstack-protector  -assume protect_parens"  #-O2 
 

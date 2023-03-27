@@ -33,7 +33,16 @@ Module arrays
 
 ! --- these are coefficients that are calculated in paracoe, but used in integ
  real(kind=8), allocatable :: a(:,:), b(:,:), c(:,:)
- 
+
+! --- for velocities : 
+#ifdef VELO
+real(kind=4), allocatable :: outV(:,:,:),  Vx(:,:,:), Vz(:,:,:), Vtot(:,:,:), newVtot(:,:,:)
+real(kind=8), allocatable :: tempv(:)  
+#endif 
+
+
+
+
  CONTAINS
 
  subroutine set_arrays(nx, ny, nz, nycut, nt, np) 
@@ -54,7 +63,26 @@ Module arrays
 
 
  allocate(temparr(nx, ny, nz))
- 
+
+! for velocities : 
+#ifdef VELO
+ allocate(Vx(nx,ny,nz))
+ allocate(Vz(nx,ny,nz))
+ allocate(Vtot(nx,ny,nz))
+ allocate(newVtot(nx,ny,nycut))
+ allocate(tempv(nycut))
+ allocate(outV(nx, ny, nz))
+
+ Vx = 0.0d0
+ Vz = 0.0d0 
+ Vtot = 0.0d0
+ newVtot = 0.0d0 
+ tempv = 0.0d0
+ outV = 0.0d0 
+#endif 
+
+
+
  allocate(P(nx, ny, nz))
  allocate(rho(nx, ny, nz))
 
@@ -164,6 +192,16 @@ Module arrays
   deallocate(a)
   deallocate(b)
   deallocate(c) 
+
+! ---- velocities 
+#ifdef VELO
+  deallocate(Vx)
+  deallocate(Vz)
+  deallocate(Vtot)
+  deallocate(outV)
+  deallocate(tempv)
+
+#endif 
 
 
  end subroutine close_arrays 

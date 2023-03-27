@@ -21,7 +21,7 @@
 
  
 !--- reading cube:
-  character(len=80)  filename1, filename2, filename3, filename 
+  character(len=80)  filename1, filename2, filename3, filename4, filename5, filename 
   character(len=80)  folder
   character(len=6)   filenumber
   character(len=50)  numberx
@@ -33,7 +33,7 @@
 ! --- for rotation 
   integer indum
   real(kind=8) meanzt, onepoint 
-  real(kind=8) mu, theta, pivot, pivotdx,  newdx
+  real(kind=8) mu, theta, pivot, pivotdx,  newdx, smu 
   real(kind=8) summean, pivot_in 
 
 ! --- for setting up tau grid on which to  map :
@@ -165,10 +165,23 @@
      filename1=trim(folder)//'eosT.'//trim(filenumber)
      filename2=trim(folder)//'eosP.'//trim(filenumber)
      filename3=trim(folder)//'result_prim_0.'//trim(filenumber)
+
+#ifdef VELO
+     filename4=trim(folder)//'result_prim_1.'//trim(filenumber)
+     filename5=trim(folder)//'result_prim_2.'//trim(filenumber)
+
+#endif 
+
    else  
      filename1=trim(folder)//'eosT.'//trim(filenumber)//'.fits' 
      filename2=trim(folder)//'eosP.'//trim(filenumber)//'.fits' 
      filename3=trim(folder)//'result_0.'//trim(filenumber)//'.fits' 
+ 
+#ifdef VELO
+
+     filename4=trim(folder)//'result_1.'//trim(filenumber)//'.fits' 
+     filename5=trim(folder)//'result_2.'//trim(filenumber)//'.fits' 
+#endif 
  
    endif 
 
@@ -181,6 +194,17 @@
     call read_cube_mpi(filename1, Nt, nx, ny, nz, T)
     call read_cube_mpi(filename2, Nt, nx, ny, nz, P)
     call read_cube_mpi(filename3, Nt, nx, ny, nz, rho)
+#ifdef VELO
+
+    call read_cube_mpi(filename4, Nt, nx, ny, nz, Vz)
+
+    if (ifmu) then
+      call read_cube_mpi(filename5, Nt, nx, ny, nz, Vx)
+    endif
+
+#endif 
+
+
 
     call fin_comm
 #endif 
@@ -191,6 +215,14 @@
     call read_cube_bin(filename1, nx, ny, nz, T)
     call read_cube_bin(filename2,  nx, ny, nz, P)
     call read_cube_bin(filename3,  nx, ny, nz, rho)
+#ifdef VELO
+    call read_cube_bin(filename4, nx, ny, nz, Vz)
+
+    if (ifmu) then
+      call read_cube_bin(filename5, nx, ny, nz, Vx)
+    endif
+#endif 
+
 
    else if (fitsread) then 
 ! ---- if fits call fits read 
@@ -202,10 +234,18 @@
      call read_cube_fits(filename3, nx, nz, ny, rho)
      call read_cube_fits(filename1, nx, nz, ny, T)
      call read_cube_fits(filename2, nx, nz, ny, P)
+#ifdef VELO
+     call read_cube_fits(filename4, nx, nz, ny, Vz)
+
+     if (ifmu) then
+      call read_cube_fits(filename5, nx, nz, ny, Vx)
+     endif
+
+#endif 
 #endif 
 
    else if(sliceread) then  
-    
+           !!! SLICE_READ DOES NOT READ VELOCITIES YET !!!     
      do i = 1, Ny
        do j = 1, Nz
         read(1,*) zgrid(j), T(1,i, j), P(1, i, j), rho(1,i,j)         
@@ -223,7 +263,14 @@
     call read_nc_cube_one(ncid, myrank, nproc, 'T', T, nx,  nx, ny, nz, comm,  ier)
     call read_nc_cube_one(ncid, myrank, nproc, 'R', rho , nx,  nx, ny, nz, comm,  ier)
     call read_nc_cube_one(ncid, myrank, nproc, 'P', P, nx,  nx, ny, nz, comm,  ier)
- 
+#ifdef VELO
+    call read_nc_cube_one(ncid, myrank, nproc, 'W', Vz, nx,  nx, ny, nz, comm,  ier)
+
+    if (ifmu) then
+      call read_nc_cube_one(ncid, myrank, nproc, 'U', Vx, nx,  nx, ny, nz, comm,  ier)
+    endif
+#endif 
+
     print*, ' read all important quantities from nc file  ' 
    else  
       print*,' ERROR, it is not specified in which format to read the cubes' 
@@ -231,7 +278,31 @@
 
    endif 
 
-  
+ 
+#ifdef VELO 
+
+
+
+!-------------------------------------------------------------------------!
+! Computes the Doppler velocities (parallel to line of sight) ------------!
+
+   if (.not. ifmu) then
+    Vtot = Vz
+   else
+    smu = sqrt(1.d0-mu*mu)
+    do j = 1, Ny
+      do i = 1, Nx
+        do k = 1, Nz
+          Vtot(i,j,k) = mu*Vz(i,j,k) - smu*Vx(i,j,k)
+        enddo
+      enddo
+    enddo
+   endif
+
+#endif 
+
+
+
 !----- check the orientation of the  vertical dimension of the cube!
  
    if (T(1,1,1) .gt. T(1,1,nz)) then 
@@ -248,7 +319,14 @@
      call swap_cube(rho, nx, ny, nz, 3, temparr)
      rho = temparr 
      temparr = 0.0
-       
+      
+#ifdef VELO
+     call swap_cube(Vtot, nx, ny, nz, 3, temparr)
+     Vtot = temparr 
+     temparr = 0.0
+#endif 
+
+
    endif 
  
 !  flipped  the array such that the vertical direction is pointing downwards! 
@@ -385,6 +463,10 @@
              tempt(j) = newT(i,k, j)
              tempp(j) = newP(i,k, j)
              tempr(j) = newrho(i,k, j)
+#ifdef VELO 
+             tempv(j) = newVtot(i,k, j)
+
+#endif 
 !    get kappa* rho
              kappa(j) = introssk(tempt(j), tempp(j))
              kappa(j) = kappa(j)* tempr(j)
@@ -400,20 +482,24 @@
          tempa = 0.0d0
 !        now  interpolate
 
-           indum = map1(taut, tempt, Nzcut, ttaugrid, tempa, Ngrid)
+           indum = map1(taut, tempt, Nzcut, taugrid, tempa, Ngrid)
            outT(i,k,1:Ngrid) = tempa(1:Ngrid)
 
-           indum = map1(taut, tempp, Nzcut, ttaugrid, tempa, Ngrid)
+           indum = map1(taut, tempp, Nzcut, taugrid, tempa, Ngrid)
            outP(i,k,1:Ngrid) = tempa(1:Ngrid)
 
 ! here we map column mass instead of rho
 
-           indum = map1(taut, tempc, Nzcut, ttaugrid, tempa, Ngrid)
+           indum = map1(taut, tempc, Nzcut, taugrid, tempa, Ngrid)
            outrho(i,k,1:Ngrid) = tempa(1:Ngrid)
 
-           indum = map1(taut, zgrid, Nzcut, ttaugrid, tempa, Ngrid)
+           indum = map1(taut, zgrid, Nzcut, taugrid, tempa, Ngrid)
            outz(i,k,1:Ngrid) = tempa(1:Ngrid)
+#ifdef VELO 
+           indum = map1(taut, tempv, Nzcut, taugrid, tempa, Ngrid)
+           outV(i,k,1:Ngrid) = tempa(1:Ngrid)
 
+#endif 
 
 
         end do
@@ -430,7 +516,10 @@
              tempt(j) = T(i,k, j)
              tempp(j) = P(i,k, j)
              tempr(j) = rho(i,k, j)
- 
+#ifdef VELO 
+             tempv(j) = Vtot(i,k,j) 
+
+#endif 
            end do 
             taut(1:Nzcut) = taur(i,k,1:Nzcut)
             tempa = 0.0d0
@@ -448,7 +537,12 @@
 
            indum = map1(taut, zgrid, Nzcut, taugrid, tempa, Ngrid)
            outz(i,k,1:Ngrid) = tempa(1:Ngrid)
+#ifdef VELO
 
+           indum = map1(taut, tempv, Nzcut, taugrid, tempa, Ngrid)
+           outV(i,k,1:Ngrid) = tempa(1:Ngrid)
+
+#endif 
        end do 
      end do  
 
@@ -502,6 +596,10 @@
          tempt = 0.0
          tempr = 0.0
          kappa = 0.0 
+#ifdef VELO 
+         tempv = 0.0
+#endif 
+
 !----- let's write out structures 
          Nx = Nx/sizee
          do m = 1, sizee
@@ -511,7 +609,12 @@
          do k = (m-1)*Nx+1, m*Nx
           do j = 1, Ny
            do i = 1, Nzz
+#ifdef VELO 
+            write(10+m,112)rho(k,j,i),T(k,j,i),P(k,j,i),kappa(i), kappa(i), kappa(i), Vtot(k,j,i)
+             tempv(i) = tempv(i) + Vtot(k,j,i) /(Ny*Nx*sizee)
+#else
              write(10+m,112)rho(k,j,i),T(k,j,i),P(k,j,i),kappa(i), kappa(i), kappa(i), kappa(i)
+#endif 
              tempr(i) = tempr(i) + rho(k,j,i)/(Ny*Nx*sizee)
              tempt(i) = tempt(i) + T(k,j,i)/(Ny*Nx*sizee)
              tempp(i) = tempp(i) + P(k,j,i) /(Ny*Nx*sizee) 
@@ -521,8 +624,13 @@
          end do 
 ! --- end of write out 
         write(90,*) ' Averaged structure' 
-        do i = 1, Nzz
+        do i = 1 , Nzz
+#ifdef VELO 
+          write(90,112) tempr(i), tempt(i), tempp(i), kappa(i), kappa(i), kappa(i), tempv(i)
+#else
           write(90,112) tempr(i), tempt(i), tempp(i), kappa(i), kappa(i), kappa(i), kappa(i)
+#endif 
+
         end do 
 
 
@@ -551,7 +659,11 @@
          do k = (m-1)*Nx+1, m*Nx
           do j = 1, Ny
            do i = 1, Nzz
+#ifdef VELO 
+             write(10+m,112)outrho(k,j,i),outT(k,j,i),outP(k,j,i),tempt(i),tempt(i),tempt(i),outV(k,j,i)
+#else
              write(10+m,112)outrho(k,j,i),outT(k,j,i),outP(k,j,i),tempt(i),tempt(i),tempt(i),tempt(i)
+#endif 
            end do
           end do
          end do
@@ -578,6 +690,9 @@
          tempt = 0.0
          tempr = 0.0
          kappa = 0.0
+#ifdef VELO 
+         tempv = 0.0
+#endif 
          Nx = Nx/sizee
          do m = 1, sizee
 
@@ -586,7 +701,12 @@
          do k = (m-1)*Nx+1, m*Nx
           do j = 1, Ny
            do i = 1, Nzz
+#ifdef VELO 
+             write(10+m,112)newrho(k,j,i),newT(k,j,i),newP(k,j,i),tempt(i),tempt(i),tempt(i),newVtot(k,j,i)
+             tempv(i) = tempv(i) + Vtot(k,j,i) /(Ny*Nx*sizee)  
+#else 
              write(10+m,112)newrho(k,j,i),newT(k,j,i),newP(k,j,i),kappa(i),kappa(i),kappa(i),kappa(i)
+#endif 
              tempr(i) = tempr(i) + newrho(k,j,i)/(Ny*Nx*sizee)
              tempt(i) = tempt(i) + newT(k,j,i)/(Ny*Nx*sizee)
              tempp(i) = tempp(i) + newP(k,j,i) /(Ny*Nx*sizee)
@@ -597,7 +717,11 @@
 
         write(90,*) ' Averaged structure'
         do i = 1, Nzz
+#ifdef VELO 
+          write(90,112) tempr(i), tempt(i), tempp(i), kappa(i), kappa(i), kappa(i), tempv(i)
+#else
           write(90,112) tempr(i), tempt(i), tempp(i), kappa(i), kappa(i), kappa(i), kappa(i)
+#endif 
         end do
 
 
@@ -641,7 +765,13 @@
         call write_netcdf(ncid, myrank, sizee, 'Z', outz, nx, nx, ny, nzz, comm, ier)
         call close_netcdf(ncid, ier)
 
-
+#ifdef VELO 
+!      velocity
+       filename='V_onTau.'//trim(filenumber)//'.nc'
+        call  create_netcdf(ncid, filename, 'V',  nx, ny, nzz, ier)
+        call write_netcdf(ncid, myrank, sizee, 'V', outV, nx, nx, ny, nzz, comm, ier)
+        call close_netcdf(ncid, ier)
+#endif 
 
 
      else if (ifmu) then 
@@ -677,7 +807,15 @@
         call  create_netcdf(ncid, filename, 'R',  nx, ny, nzz, ier)
         call write_netcdf(ncid, myrank, sizee, 'R', newrho, nx, nx, ny, nzz, comm, ier)
         call close_netcdf(ncid, ier)
+  
+#ifdef VELO 
+!      velocity
+        filename='V_mu_'//trim(numberx)//'.'//trim(filenumber)//'.nc'
+        call  create_netcdf(ncid, filename, 'V',  nx, ny, nzz, ier)
+        call write_netcdf(ncid, myrank, sizee, 'V', newVtot, nx, nx, ny, nzz, comm, ier)
+        call close_netcdf(ncid, ier)
 
+#endif 
 
      end if 
 

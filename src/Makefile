@@ -11,14 +11,14 @@ main:    $(OBJECTS)
 	 $(FC) $(FPPFLAGS)  -o cubeconv.exe main.F90  $(OBJECTS) $(INCLUDE) $(FITSLIB) $(NETCDFLIB)   
 	mv cubeconv.exe  ../bin 
 
-arrays.o : arrays.f90
-	$(FC) $(FFLAGS) $(FPPFLAGS) arrays.f90 
+arrays.o : arrays.F90
+	$(FC) $(FFLAGS) $(FPPFLAGS) arrays.F90 
 
 io_cubes.o : io_cubes.F90
 	$(FC) $(FFLAGS) $(FPPFLAGS) io_cubes.F90 $(INCLUDE) $(FITSLIB) 
 
-rotate.o : rotate.f90
-	$(FC) $(FFLAGS) rotate.f90
+rotate.o : rotate.F90
+	$(FC) $(FFLAGS) rotate.F90
 
 initcalc.o : initcalc.f90
 	$(FC) $(FFLAGS) initcalc.f90
