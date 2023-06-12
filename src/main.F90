@@ -702,8 +702,8 @@
           do j = 1, Ny
            do i = 1, Nzz
 #ifdef VELO 
-             write(10+m,112)newrho(k,j,i),newT(k,j,i),newP(k,j,i),tempt(i),tempt(i),tempt(i),newVtot(k,j,i)
-             tempv(i) = tempv(i) + Vtot(k,j,i) /(Ny*Nx*sizee)  
+             write(10+m,112)newrho(k,j,i),newT(k,j,i),newP(k,j,i),kappa(i),kappa(i),kappa(i),newVtot(k,j,i)
+             tempv(i) = tempv(i) + newVtot(k,j,i) /(Ny*Nx*sizee)  
 #else 
              write(10+m,112)newrho(k,j,i),newT(k,j,i),newP(k,j,i),kappa(i),kappa(i),kappa(i),kappa(i)
 #endif 

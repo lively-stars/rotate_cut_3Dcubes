@@ -18,7 +18,7 @@ io_cubes.o : io_cubes.F90
 	$(FC) $(FFLAGS) $(FPPFLAGS) io_cubes.F90 $(INCLUDE) $(FITSLIB) 
 
 rotate.o : rotate.F90
-	$(FC) $(FFLAGS) rotate.F90
+	$(FC) $(FFLAGS) $(FPPFLAGS) rotate.F90
 
 initcalc.o : initcalc.f90
 	$(FC) $(FFLAGS) initcalc.f90
