@@ -8,8 +8,8 @@ OBJECTS=arrays.o io_cubes.o  initcalc.o rotate.o
 all: main 
 
 main:    $(OBJECTS)  
-	 $(FC) $(FPPFLAGS)  -o cubeconv.exe main.F90  $(OBJECTS) $(INCLUDE) $(FITSLIB) $(NETCDFLIB)   
-	mv cubeconv.exe  ../bin 
+	 $(FC) $(FPPFLAGS)  -o cubeconv-log.exe main.F90  $(OBJECTS) $(INCLUDE) $(FITSLIB) $(NETCDFLIB)   
+	mv cubeconv-log.exe  ../bin 
 
 arrays.o : arrays.F90
 	$(FC) $(FFLAGS) $(FPPFLAGS) arrays.F90 

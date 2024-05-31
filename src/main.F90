@@ -46,11 +46,13 @@
   real(kind=8), parameter::  tauint2 =1.0
   real(kind=8), parameter::  step2 = 0.01 
   integer offsetg 
-  
+  logical refinement  
 !--- functions -----------------------------------------------!  
   real(kind=8) introssk
   integer      map1
 
+
+  refinement = .false. 
 
 
 
@@ -58,7 +60,7 @@
 !       folder='/scratch/yeo/SATIRE3D/D000/snapshots/'
     read(*,*) folder
     read(*,*) filenumber
-    sizee = 4
+    sizee = 1
     myrank = 0  
     nproc = 1 
 !----------------------------------------------------------------
@@ -69,7 +71,8 @@
     print*, ' that the pivot point =', pivot_in 
 
     if (gettaug) then 
-     Ngrid  = int((tau2lg - tau1lg)/step) +111
+     Ngrid  = int((tau2lg - tau1lg)/step) 
+     if (refinement) ngrid = ngrid + 111
      if (Ngrid .gt. Ngridmax) then 
         print*,' Tau grid configuration results in too many points; Ngrid =', Ngrid 
         print*, ' Application will be aborted ' 
@@ -430,22 +433,32 @@
    
     print*, ' Start to set up tau-grid onto which to interpolate' 
 !   --- get up taugrid 
+
+
+    if (refinement ) then 
 !   in three steps
-    Ngrid  = int((tauint1 - tau1lg)/step)
-    offsetg = ngrid +1 
-    do i = 1, ngrid 
-     taugrid(i) = tau1lg+(i-1)*step
-    end do 
-    ngrid = int((tauint2 - tauint1)/step2)
-    do i = offsetg, ngrid+offsetg-1
-      taugrid(i) = taugrid(i-1) + step2
-    end do  
-    offsetg = ngrid+offsetg
-    ngrid = int((tau2lg - tau1lg)/step) +111 
-    do i = offsetg, ngrid
-      taugrid(i) = taugrid(i-1) + step
-    end do   
-   
+       ngrid  = int((tauint1 - tau1lg)/step)
+       offsetg = ngrid +1 
+       do i = 1, ngrid 
+        taugrid(i) = tau1lg+(i-1)*step
+       end do 
+       ngrid = int((tauint2 - tauint1)/step2)
+       do i = offsetg, ngrid+offsetg-1
+         taugrid(i) = taugrid(i-1) + step2
+       end do  
+       offsetg = ngrid+offsetg
+       ngrid = int((tau2lg - tau1lg)/step) +111 
+       do i = offsetg, ngrid
+         taugrid(i) = taugrid(i-1) + step
+       end do   
+
+    else ! normal taugrid setup
+      do i = 1, ngrid
+        taugrid(i) = tau1lg+(i-1)*step
+      end do 
+    endif 
+
+    !   
     do i =1, ngrid
       taugrid(i) = 10**(taugrid(i))
       write(98,*) taugrid(i)
@@ -485,13 +498,15 @@
            indum = map1(taut, tempt, Nzcut, taugrid, tempa, Ngrid)
            outT(i,k,1:Ngrid) = tempa(1:Ngrid)
 
+           tempp = log10(tempp)
            indum = map1(taut, tempp, Nzcut, taugrid, tempa, Ngrid)
-           outP(i,k,1:Ngrid) = tempa(1:Ngrid)
+           outP(i,k,1:Ngrid) = 10.0d0**tempa!(1:Ngrid)
 
 ! here we map column mass instead of rho
+           tempc = log10(tempc)
 
            indum = map1(taut, tempc, Nzcut, taugrid, tempa, Ngrid)
-           outrho(i,k,1:Ngrid) = tempa(1:Ngrid)
+           outrho(i,k,1:Ngrid) = 10.0d0**tempa
 
            indum = map1(taut, zgrid, Nzcut, taugrid, tempa, Ngrid)
            outz(i,k,1:Ngrid) = tempa(1:Ngrid)
@@ -528,12 +543,13 @@
 !        now  interpolate
            indum = map1(taut, tempt, Nzcut, taugrid, tempa, Ngrid)
            outT(i,k,1:Ngrid) = tempa(1:Ngrid)
-
+           tempp = log10(tempp)
            indum = map1(taut, tempp, Nzcut, taugrid, tempa, Ngrid)
-           outP(i,k,1:Ngrid) = tempa(1:Ngrid)
+           outP(i,k,1:Ngrid) = 10.0d0**tempa
 ! here we map column mass instead of rho
+           tempc = log10(tempc)
            indum = map1(taut, tempc, Nzcut, taugrid, tempa, Ngrid)
-           outrho(i,k,1:Ngrid) = tempa(1:Ngrid)
+           outrho(i,k,1:Ngrid) = 10.0d0**tempa!(1:Ngrid)
 
            indum = map1(taut, zgrid, Nzcut, taugrid, tempa, Ngrid)
            outz(i,k,1:Ngrid) = tempa(1:Ngrid)
