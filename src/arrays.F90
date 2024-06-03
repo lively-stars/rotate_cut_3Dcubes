@@ -20,7 +20,7 @@ Module arrays
  integer(kind=4) ,allocatable :: kappatab(:,:)
 
 ! second set to allocate
- real(kind = 8), allocatable:: zgrid(:)
+ real(kind = 8), allocatable:: zgrid(:), zgrid_extended(:)
  
 ! for mu = ... rotated calculations
  real(kind=8), allocatable:: zf(:), xf(:)
@@ -54,6 +54,8 @@ real(kind=8), allocatable :: tempv(:)
  integer ntot
  ntot = nx*ny*nz 
  allocate(zgrid(nycut))
+ allocate(zgrid_extended(nycut))
+
 
  allocate(buffarr(ntot))
  allocate(bufffits(nx, nz, ny))
@@ -162,6 +164,7 @@ real(kind=8), allocatable :: tempv(:)
   implicit none
 
   deallocate(zgrid)
+  deallocate(zgrid_extended) 
   deallocate(buffarr)
   deallocate(bufffits)
   deallocate(T)

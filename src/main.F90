@@ -10,7 +10,7 @@
 ! nc routines can be potentially used in parallel:
   integer sizee, nproc, myrank
 !--- cube dimensions 
-  integer  Nzz, Ni, Nt, Nx, Ny, Nz, Nzcut 
+  integer  Nzz, Ni, Nt, Nx, Ny, Nz, Nzcut, Nz_extended 
 ! -- additional for a second kappa table
   integer nump2, numt2
 
@@ -27,7 +27,7 @@
   character(len=50)  numberx
 
 ! --- for zgrid 
-  real(kind=8)  dx, dz, dy
+  real(kind=8)  dx, dz, dy, dz_fine
   real(kind=8) time 
 
 ! --- for rotation 
@@ -46,11 +46,19 @@
   real(kind=8), parameter::  tauint2 =1.0
   real(kind=8), parameter::  step2 = 0.01 
   integer offsetg 
+  integer n_zpoints, n_additional_z
+  integer final_refined_z , start_zrefine, stop_zrefine
   logical refinement  
+  logical interpolate_geometric
+
 !--- functions -----------------------------------------------!  
   real(kind=8) introssk
   integer      map1
+!---- initialisation for interpolation on finer z-grid 
 
+  interpolate_geometric = .true.
+  n_zpoints = 5
+  n_additional_z = 9  
 
   refinement = .false. 
 
@@ -80,7 +88,7 @@
      endif
     endif 
 
-! get cube dimensions :
+! get cube dimensions ( Nx, Ny, Nz)  :
 
   if (mpiread .or. binread) then 
 
@@ -120,21 +128,17 @@
     dx = dy 
   endif 
 
-
+  if (interpolate_geometric) Nz_extended = Nz + (n_zpoints*n_additional_z)
 
 !---- for tau - integration we do not need the whole depth of the cube
 !--- set depth of temporary arrays
-   
+   Nzcut = Nz 
+   if (interpolate_geometric) Nzcut = Nz_extended
    if (ifmu ) then  
-      Nzcut = Nz
-      if (mu .le. 0.9)  Nzcut = int(Nz * (0.9d0/mu))
-
+      if (mu .le. 0.9)  Nzcut = int(Nzcut * (0.9d0/mu))
    else
-     mu = 1.0
-     Nzcut = Nz 
+      mu = 1.0
    endif 
-
-
 
 
 
@@ -145,9 +149,16 @@
   open(unit = 2, file='ross_table.dat', form='formatted', status='old')  
   read(2,*) numt, numpres
 
-!----- allocate  arrays
+!----- allocate  arrays of the cubes to be read in 
 
-  call set_arrays(Nx, Ny, Nz, Nzcut, numt, numpres)
+  if (interpolate_geometric) then  
+   call set_arrays(Nx, Ny, Nz_extended, Nzcut, numt, numpres)
+
+  else  
+
+    call set_arrays(Nx, Ny, Nz, Nzcut, numt, numpres) 
+  endif 
+
   if (gettaug) call set_tarrays(Nx, Ny, Ngrid)
 
 !---- read in the kappa table 1 :
@@ -344,7 +355,7 @@
      print*, ' dz = ', dz
      zgrid(1)=1.0d0
 
-     do k=2,Nzcut
+     do k=2,Nz
        zgrid(k)=(k-1)*dz +1.0 
      end do
    endif 
@@ -358,12 +369,67 @@
      Nzcut = Nz 
    endif 
 
-!----  ------------------------------------------------------------! 
-!---  GET rays from top inwards and calculate TAU -----------------! 
 
-! ----- NOTE:       in this place the tau is calculated, now if we rotate, then it is the tau Rosseland
-!-------            if there is no rotation, then it is the higher tau opacity in the UV.
-!-------            if the first is true, and the second needs to be done, the another kappa-table need to be read later and applied. 
+! ---- NOW we need to also setup the new refinded zgrid and interpolate the cubes onto that! 
+
+   if (interpolate_geometric) then 
+     dz_fine = dz/(n_additional_z + 1) 
+
+! set up zgrid_extended : 
+     start_zrefine = 80 
+     stop_zrefine = start_zrefine + n_zpoints
+     final_refined_z = start_zrefine+(n_zpoints*(n_additional_z + 1))
+
+     zgrid_extended(1:start_zrefine ) = zgrid(1:start_zrefine)
+     do i = start_zrefine+1, final_refined_z 
+         zgrid_extended(i) = zgrid_extended(i-1) + dz_fine 
+     end do 
+  
+     zgrid_extended(final_refined_z :Nz_extended) = zgrid(stop_zrefine:Nz)
+
+! DEBUG 
+!   print*, ' old zgrid = ', zgrid
+!   print*, ' new zgrid = ', zgrid_extended
+
+!   stop 
+!  interpolate all needed quantities onto that: 
+
+      do i = 1, Nx
+        do k =  1, Ny
+            do j = 1, Nz
+
+             tempt(j) = T(i,k,j)
+             tempp(j) = P(i,k,j)
+             tempr(j) = rho(i,k,j)
+#ifdef VELO
+
+#endif 
+            end do
+! ---- 
+            indum = map1(zgrid,  tempt, Nz, zgrid_extended, tempa, Nz_extended)
+            T(i,k,1:Nz_extended) = tempa(1:Nz_extended)
+   
+            indum = map1(zgrid,  tempp, Nz, zgrid_extended, tempa, Nz_extended)
+            P(i,k,1:Nz_extended) = tempa(1:Nz_extended)
+
+            indum = map1(zgrid,  tempr, Nz, zgrid_extended, tempa, Nz_extended)
+            rho(i,k,1:Nz_extended) = tempa(1:Nz_extended)
+            
+#ifdef VELO
+            indum = map1(zgrid,  tempv, Nz, zgrid_extended, tempa, Nz_extended)
+            Vtot(i,k,1:Nz_extended) = tempa(1:Nz_extended)
+#endif 
+        end do 
+      end do 
+
+! now set Nz = Nz_extended and zgrid = zgrid_extended so that the remaining part does not notice any changes! 
+
+      Nz = Nz_extended
+      zgrid = zgrid_extended
+      
+
+   endif 
+
 
 
 ! ---if we only need the format to be changed, not calculations are needed except
