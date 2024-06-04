@@ -50,6 +50,10 @@
   integer final_refined_z , start_zrefine, stop_zrefine
   logical refinement  
   logical interpolate_geometric
+  logical logarithm_interp 
+
+! ------   DEBUG 
+  integer :: count_debug 
 
 !--- functions -----------------------------------------------!  
   real(kind=8) introssk
@@ -59,6 +63,8 @@
   interpolate_geometric = .true.
   n_zpoints = 5
   n_additional_z = 9  
+
+  logarithm_interp = .false. 
 
   refinement = .false. 
 
@@ -386,18 +392,19 @@
      end do 
   
      zgrid_extended(final_refined_z :Nz_extended) = zgrid(stop_zrefine:Nz)
+ 
 
 ! DEBUG 
+!     print*, 'extended grid start,stop : ', zgrid_extended(1), zgrid_extended(Nz_extended)
 !   print*, ' old zgrid = ', zgrid
 !   print*, ' new zgrid = ', zgrid_extended
 
 !   stop 
 !  interpolate all needed quantities onto that: 
-
       do i = 1, Nx
         do k =  1, Ny
             do j = 1, Nz
-
+             
              tempt(j) = T(i,k,j)
              tempp(j) = P(i,k,j)
              tempr(j) = rho(i,k,j)
@@ -405,23 +412,28 @@
 
 #endif 
             end do
-! ---- 
-            indum = map1(zgrid,  tempt, Nz, zgrid_extended, tempa, Nz_extended)
-            T(i,k,1:Nz_extended) = tempa(1:Nz_extended)
-   
-            indum = map1(zgrid,  tempp, Nz, zgrid_extended, tempa, Nz_extended)
-            P(i,k,1:Nz_extended) = tempa(1:Nz_extended)
+! ----       
 
-            indum = map1(zgrid,  tempr, Nz, zgrid_extended, tempa, Nz_extended)
-            rho(i,k,1:Nz_extended) = tempa(1:Nz_extended)
-            
+            indum = map1(zgrid,  tempt, Nz, zgrid_extended, temp_iterate, Nz_extended)
+            T(i,k,1:Nz_extended) = temp_iterate(1:Nz_extended)
+  
+
+            indum = map1(zgrid,  tempp, Nz, zgrid_extended, temp_iterate, Nz_extended)
+            P(i,k,1:Nz_extended) = temp_iterate(1:Nz_extended)
+
+            indum = map1(zgrid,  tempr, Nz, zgrid_extended, temp_iterate, Nz_extended)
+            rho(i,k,1:Nz_extended) = temp_iterate(1:Nz_extended)
+
 #ifdef VELO
-            indum = map1(zgrid,  tempv, Nz, zgrid_extended, tempa, Nz_extended)
-            Vtot(i,k,1:Nz_extended) = tempa(1:Nz_extended)
-#endif 
+            indum = map1(zgrid,  tempv, Nz, zgrid_extended, temp_iterate, Nz_extended)
+            Vtot(i,k,1:Nz_extended) = temp_iterate(1:Nz_extended)
+#endif
+
+
         end do 
       end do 
-
+ 
+      print*, 'count_debug = ', count_debug
 ! now set Nz = Nz_extended and zgrid = zgrid_extended so that the remaining part does not notice any changes! 
 
       Nz = Nz_extended
@@ -559,10 +571,18 @@
 
          taur(i, k, 1:Nzcut) = taut(1:Nzcut)
          tempa = 0.0d0
-!        now  interpolate
-
+! now interpolate on the tau grid: 
+         
+             
            indum = map1(taut, tempt, Nzcut, taugrid, tempa, Ngrid)
-           outT(i,k,1:Ngrid) = tempa(1:Ngrid)
+           outT(i,k,1:Ngrid) = tempa(1:Ngrid)         
+         
+!  ----- two option to interpolate, on log10 (P, rho)  
+!  ------ or as is on (P, rho) 
+
+
+
+         if (logarithm_interp) then 
 
            tempp = log10(tempp)
            indum = map1(taut, tempp, Nzcut, taugrid, tempa, Ngrid)
@@ -573,6 +593,20 @@
 
            indum = map1(taut, tempc, Nzcut, taugrid, tempa, Ngrid)
            outrho(i,k,1:Ngrid) = 10.0d0**tempa
+
+         else 
+           indum = map1(taut, tempp, Nzcut, taugrid, tempa, Ngrid)
+           outP(i,k,1:Ngrid) = tempa(1:Ngrid)
+         
+! here we map column mass instead of rho
+
+           indum = map1(taut, tempc, Nzcut, taugrid, tempa, Ngrid)
+           outrho(i,k,1:Ngrid) = tempa(1:Ngrid) 
+
+
+         endif 
+
+
 
            indum = map1(taut, zgrid, Nzcut, taugrid, tempa, Ngrid)
            outz(i,k,1:Ngrid) = tempa(1:Ngrid)

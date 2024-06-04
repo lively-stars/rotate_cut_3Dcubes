@@ -15,7 +15,7 @@ Module arrays
  real(kind=4), allocatable:: newT(:,:,:), newP(:,:,:),newrho(:,:,:)
  
 
- real(kind=8), allocatable :: tempc(:), tempr(:), tempt(:), tempp(:), kappa(:), taut(:)
+ real(kind=8), allocatable :: tempc(:), tempr(:), tempt(:), tempp(:), kappa(:), taut(:), temp_iterate(:)
  real(kind=8), allocatable:: tabp(:), tabt(:)
  integer(kind=4) ,allocatable :: kappatab(:,:)
 
@@ -110,7 +110,8 @@ real(kind=8), allocatable :: tempv(:)
  allocate(tempc(nycut))
  allocate(kappa(nycut))
  allocate(taut(nycut))
- 
+ allocate(temp_iterate(nycut))
+
 
 
  tempt = 0.0
@@ -186,7 +187,7 @@ real(kind=8), allocatable :: tempv(:)
   deallocate(tempt)
   deallocate(taut)
   deallocate(kappa)
-
+  deallocate(temp_iterate)
 
   deallocate(newT)
   deallocate(newP)
