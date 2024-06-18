@@ -8,10 +8,10 @@ module initcalc
  logical  ncread 
 contains
 
- subroutine init_calc(mu, tau1lg, step, tau2lg, pivot_in ) 
+ subroutine init_calc(mu, tau1lg, step, tau2lg, pivot_in, phi ) 
  
    implicit none 
-   real(kind=8), intent(out) :: mu, step, tau1lg, tau2lg, pivot_in 
+   real(kind=8), intent(out) :: mu, phi, step, tau1lg, tau2lg, pivot_in 
 
    integer iread, satlas, rot, interpol, tau
   
@@ -34,6 +34,7 @@ contains
     read(2,*) iread
     read(2,*) rot
     read(2,*) mu
+    read(2,*) phi 
     read(2,*) tau  
     read(2,*) interpol
     read(2,*) tau1lg, step, tau2lg 
@@ -70,6 +71,7 @@ contains
    if (sliceread) print*, ' --- Slice of the cube is beeing read ---      '
     print*,'                                                   '
    if (ifmu) print*, ' the cubes will be rotated to the view angle = ', mu
+   if (ifmu) print*, ' the azimuthal rotation is phi = ', phi 
    if (tau200) print*, ' the highest line opacity in the UV is calculated   '
    if (interpol .eq. 1) print*, ' the obtained rays are interpolated on a coarse tau grid ' 
    if (nocalc) print*, ' the cube will be not changed ' 

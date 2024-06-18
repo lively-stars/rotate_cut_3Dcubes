@@ -33,7 +33,7 @@
 ! --- for rotation 
   integer indum
   real(kind=8) meanzt, onepoint 
-  real(kind=8) mu, theta, pivot, pivotdx,  newdx, smu 
+  real(kind=8) mu, phi, theta, pivot, pivotdx,  newdx, smu 
   real(kind=8) summean, pivot_in 
 
 ! --- for setting up tau grid on which to  map :
@@ -65,7 +65,7 @@
 !      initialize
 ! ---- read control file and set all logicals ------------------
  
-    call init_calc(mu, tau1lg, step, tau2lg, pivot_in)
+    call init_calc(mu, tau1lg, step, tau2lg, pivot_in , phi)
     print*, ' that the pivot point =', pivot_in 
 
     if (gettaug) then 
@@ -413,7 +413,13 @@
      pivot = summean
      if (pivot_in .gt. 0.0d0) pivot = pivot_in
      print*, ' The pivot used for calc = ', pivot 
-     call rotate_cube(mu, pivot, nx, ny, nz, dx, dy, dz)  
+
+     if (phi .ne. 0.0 ) then 
+       call rotate_cube_azimuth(mu, phi, pivot, nx, ny, nz, dx, dy, dz)
+     else 
+       call rotate_cube(mu, pivot, nx, ny, nz, dx, dy, dz)  
+     endif 
+
 !---- after rotation was performed, the arrays are stored in newT, newP, newrho!
 ! okey so now we actually have Nzcut points in the vertical direction
      Nzcut = Nz
