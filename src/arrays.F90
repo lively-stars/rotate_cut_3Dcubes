@@ -39,7 +39,11 @@ Module arrays
 real(kind=4), allocatable :: outV(:,:,:),  Vx(:,:,:), Vz(:,:,:), Vtot(:,:,:), newVtot(:,:,:)
 real(kind=8), allocatable :: tempv(:)  
 #endif 
-
+#ifdef MAGNETIC
+real(kind=4), allocatable :: Bx(:,:,:), By(:,:,:), Bz(:,:,:)
+real(kind=4), allocatable :: outBz(:,:,:), outBy(:,:,:), outBx(:,:,:), newBx(:,:,:), newBy(:,:,:), newBz(:,:,:) 
+real(kind=8), allocatable :: tempbx(:), tempby(:), tempbz(:)
+#endif
 
 
 
@@ -81,7 +85,22 @@ real(kind=8), allocatable :: tempv(:)
  outV = 0.0d0 
 #endif 
 
+#ifdef MAGNETIC
+ allocate(Bx(nx, ny, nz))
+ allocate(By(nx, ny, nz))
+ allocate(Bz(nx, ny, nz))
+ Bx = 0.0
+ By = 0.0
+ Bz = 0.0
+ allocate(newBx(nx, ny, nycut))
+ allocate(newBy(nx, ny, nycut))
+ allocate(newBz(nx, ny, nycut))
+ allocate(tempbx(nycut))
+ allocate(tempby(nycut))
+ allocate(tempbz(nycut))
 
+
+#endif 
 
  allocate(P(nx, ny, nz))
  allocate(rho(nx, ny, nz))
@@ -106,6 +125,7 @@ real(kind=8), allocatable :: tempv(:)
  allocate(tempp(nycut))
  allocate(tempr(nycut))
  allocate(tempc(nycut))
+ 
  allocate(kappa(nycut))
  allocate(taut(nycut))
  
@@ -154,7 +174,13 @@ real(kind=8), allocatable :: tempv(:)
    allocate(outP(nx, ny, nz))
    allocate(outrho(nx, ny, nz))
   
+#ifdef MAGNETIC
+   allocate(outBx(nx, ny, nz))
+   allocate(outBy(nx, ny, nz))
+   allocate(outBz(nx, ny, nz))
 
+
+#endif 
  end subroutine set_tarrays
 
 

@@ -87,6 +87,21 @@
              newVtot(i,k,j)  = newVtot(i,k,j) +  z_f*((Vtot(i, xn, z_l+1))*(1.0d0-x_f)+ x_f*(Vtot(i, xnp,z_l+1)))
 #endif 
 
+#ifdef MAGNETIC
+
+             newBx(i,k,j)  = ((Bx(i, xn, z_l)) * (1.0d0-x_f) + x_f*(Bx(i, xnp,  z_l))) *(1.0d0- z_f)
+             newBx(i,k,j)  = newBx(i,k,j) +  z_f*((Bx(i, xn, z_l+1))*(1.0d0-x_f)+ x_f*(Bx(i, xnp,z_l+1)))
+
+             newBy(i,k,j)  = ((By(i, xn, z_l)) * (1.0d0-x_f) + x_f*(By(i, xnp,  z_l))) *(1.0d0- z_f)
+             newBy(i,k,j)  = newBy(i,k,j) +  z_f*((By(i, xn, z_l+1))*(1.0d0-x_f)+ x_f*(By(i, xnp,z_l+1)))
+
+             newBz(i,k,j)  = ((Bz(i, xn, z_l)) * (1.0d0-x_f) + x_f*(Bz(i, xnp,  z_l))) *(1.0d0- z_f)
+             newBz(i,k,j)  = newBz(i,k,j) +  z_f*((Bz(i, xn, z_l+1))*(1.0d0-x_f)+ x_f*(Bz(i, xnp,z_l+1)))
+
+#endif 
+
+
+
             znew = zold + dz*(j-1)*1.0d-5 
 
            end do

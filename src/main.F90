@@ -46,19 +46,19 @@
   real(kind=8), parameter::  tauint2 =1.0
   real(kind=8), parameter::  step2 = 0.01 
   integer offsetg 
-  
+  logical :: refinement  
 !--- functions -----------------------------------------------!  
   real(kind=8) introssk
   integer      map1
 
-
+  refinement = .false.
 
 
 !       filename='result_0.120000.fits'
 !       folder='/scratch/yeo/SATIRE3D/D000/snapshots/'
     read(*,*) folder
     read(*,*) filenumber
-    sizee = 4
+    sizee = 1
     myrank = 0  
     nproc = 1 
 !----------------------------------------------------------------
@@ -69,7 +69,9 @@
     print*, ' that the pivot point =', pivot_in 
 
     if (gettaug) then 
-     Ngrid  = int((tau2lg - tau1lg)/step) +111
+     
+     Ngrid  = int((tau2lg - tau1lg)/step) +1
+     if (refinement) Ngrid  = int((tau2lg - tau1lg)/step) +111   
      if (Ngrid .gt. Ngridmax) then 
         print*,' Tau grid configuration results in too many points; Ngrid =', Ngrid 
         print*, ' Application will be aborted ' 
@@ -223,7 +225,6 @@
     endif
 #endif 
 
-
    else if (fitsread) then 
 ! ---- if fits call fits read 
  
@@ -270,7 +271,14 @@
       call read_nc_cube_one(ncid, myrank, nproc, 'U', Vx, nx,  nx, ny, nz, comm,  ier)
     endif
 #endif 
-
+#ifdef MAGNETIC
+     call read_nc_cube_one(ncid, myrank, nproc, 'Bx', Bx, nx,  nx, ny, nz, comm,  ier)
+     call read_nc_cube_one(ncid, myrank, nproc, 'By', By, nx,  nx, ny, nz, comm,  ier)
+     call read_nc_cube_one(ncid, myrank, nproc, 'Bz', Bz, nx,  nx, ny, nz, comm,  ier)
+     Bx = sqrt(4.0d0*4.0d0*atan(1.0d0)) * Bx 
+     By = sqrt(4.0d0*4.0d0*atan(1.0d0)) * By 
+     Bz = sqrt(4.0d0*4.0d0*atan(1.0d0)) * Bz
+#endif 
     print*, ' read all important quantities from nc file  ' 
    else  
       print*,' ERROR, it is not specified in which format to read the cubes' 
@@ -431,21 +439,31 @@
     print*, ' Start to set up tau-grid onto which to interpolate' 
 !   --- get up taugrid 
 !   in three steps
-    Ngrid  = int((tauint1 - tau1lg)/step)
-    offsetg = ngrid +1 
-    do i = 1, ngrid 
-     taugrid(i) = tau1lg+(i-1)*step
-    end do 
-    ngrid = int((tauint2 - tauint1)/step2)
-    do i = offsetg, ngrid+offsetg-1
-      taugrid(i) = taugrid(i-1) + step2
-    end do  
-    offsetg = ngrid+offsetg
-    ngrid = int((tau2lg - tau1lg)/step) +111 
-    do i = offsetg, ngrid
-      taugrid(i) = taugrid(i-1) + step
-    end do   
+!     if we need refinement : 
+    if (refinement) then 
    
+       Ngrid  = int((tauint1 - tau1lg)/step)
+       offsetg = ngrid +1 
+       do i = 1, ngrid 
+        taugrid(i) = tau1lg+(i-1)*step
+       end do 
+       ngrid = int((tauint2 - tauint1)/step2)
+       do i = offsetg, ngrid+offsetg-1
+         taugrid(i) = taugrid(i-1) + step2
+       end do  
+       offsetg = ngrid+offsetg
+       ngrid = int((tau2lg - tau1lg)/step) +111 
+       do i = offsetg, ngrid
+         taugrid(i) = taugrid(i-1) + step
+       end do   
+      
+   
+    else 
+       do i = 1,   ngrid
+         taugrid(i) = tau1lg + (i-1)*step
+       end do
+
+    endif   
     do i =1, ngrid
       taugrid(i) = 10**(taugrid(i))
       write(98,*) taugrid(i)
@@ -467,6 +485,12 @@
              tempv(j) = newVtot(i,k, j)
 
 #endif 
+#ifdef MAGNETIC
+             tempbx(j) = newBx(i,k,j)
+             tempby(j) = newBy(i,k,j)
+             tempbz(j) = newBz(i,k,j)
+
+#endif
 !    get kappa* rho
              kappa(j) = introssk(tempt(j), tempp(j))
              kappa(j) = kappa(j)* tempr(j)
@@ -500,6 +524,16 @@
            outV(i,k,1:Ngrid) = tempa(1:Ngrid)
 
 #endif 
+#ifdef MAGNETIC 
+          indum = map1(taut, tempbx, Nzcut, taugrid, tempa, Ngrid)
+           outBx(i,k,1:Ngrid) = tempa(1:Ngrid)
+
+          indum = map1(taut, tempby, Nzcut, taugrid, tempa, Ngrid)
+           outBy(i,k,1:Ngrid) = tempa(1:Ngrid)
+
+          indum = map1(taut, tempbz, Nzcut, taugrid, tempa, Ngrid)
+           outBz(i,k,1:Ngrid) = tempa(1:Ngrid)
+#endif 
 
 
         end do
@@ -518,6 +552,11 @@
              tempr(j) = rho(i,k, j)
 #ifdef VELO 
              tempv(j) = Vtot(i,k,j) 
+#endif 
+#ifdef MAGNETIC
+             tempbx(j) = Bx(i,k,j)
+             tempby(j) = By(i,k,j)
+             tempbz(j) = Bz(i,k,j)
 
 #endif 
            end do 
@@ -542,6 +581,16 @@
            indum = map1(taut, tempv, Nzcut, taugrid, tempa, Ngrid)
            outV(i,k,1:Ngrid) = tempa(1:Ngrid)
 
+#endif 
+#ifdef MAGNETIC 
+          indum = map1(taut, tempbx, Nzcut, taugrid, tempa, Ngrid)
+           outBx(i,k,1:Ngrid) = tempa(1:Ngrid)
+
+          indum = map1(taut, tempby, Nzcut, taugrid, tempa, Ngrid)
+           outBy(i,k,1:Ngrid) = tempa(1:Ngrid)
+
+          indum = map1(taut, tempbz, Nzcut, taugrid, tempa, Ngrid)
+           outBz(i,k,1:Ngrid) = tempa(1:Ngrid)
 #endif 
        end do 
      end do  
@@ -610,7 +659,12 @@
           do j = 1, Ny
            do i = 1, Nzz
 #ifdef VELO 
-            write(10+m,112)rho(k,j,i),T(k,j,i),P(k,j,i),kappa(i), kappa(i), kappa(i), Vtot(k,j,i)
+#ifdef MAGNETIC
+
+            write(10+m,112)rho(k,j,i),T(k,j,i),P(k,j,i), Bx(k,j,i), By(k,j,i), Bz(k,j,i),  Vtot(k,j,i)
+#else
+            write(10+m,112)rho(k,j,i),T(k,j,i),P(k,j,i), kappa(i) , kappa(i), kappa(i),  Vtot(k,j,i)
+#endif 
              tempv(i) = tempv(i) + Vtot(k,j,i) /(Ny*Nx*sizee)
 #else
              write(10+m,112)rho(k,j,i),T(k,j,i),P(k,j,i),kappa(i), kappa(i), kappa(i), kappa(i)
@@ -660,7 +714,13 @@
           do j = 1, Ny
            do i = 1, Nzz
 #ifdef VELO 
+
+#ifdef MAGNETIC 
+             write(10+m,112)outrho(k,j,i),outT(k,j,i),outP(k,j,i),outBx(k,j,i),outBy(k,j,i),outBz(k,j,i),outV(k,j,i)
+#else
              write(10+m,112)outrho(k,j,i),outT(k,j,i),outP(k,j,i),tempt(i),tempt(i),tempt(i),outV(k,j,i)
+#endif 
+
 #else
              write(10+m,112)outrho(k,j,i),outT(k,j,i),outP(k,j,i),tempt(i),tempt(i),tempt(i),tempt(i)
 #endif 
@@ -701,9 +761,15 @@
          do k = (m-1)*Nx+1, m*Nx
           do j = 1, Ny
            do i = 1, Nzz
-#ifdef VELO 
+#ifdef VELO
+
+#ifdef MAGNETIC 
+             write(10+m,112)newrho(k,j,i),newT(k,j,i),newP(k,j,i),newBx(k,j,i),newBy(k,j,i),newBz(k,j,i),newVtot(k,j,i)
+             tempv(i) = tempv(i) + newVtot(k,j,i) /(Ny*Nx*sizee)
+#else
              write(10+m,112)newrho(k,j,i),newT(k,j,i),newP(k,j,i),kappa(i),kappa(i),kappa(i),newVtot(k,j,i)
              tempv(i) = tempv(i) + newVtot(k,j,i) /(Ny*Nx*sizee)  
+#endif 
 #else 
              write(10+m,112)newrho(k,j,i),newT(k,j,i),newP(k,j,i),kappa(i),kappa(i),kappa(i),kappa(i)
 #endif 
