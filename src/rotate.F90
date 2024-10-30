@@ -24,8 +24,7 @@
    theta = acos(mu)
    pivotdx = tan(theta) * pivot
    newdx = dz * sin(theta)
-   Nzcut = Nz
-   if (mu .le. 0.9) Nzcut = int(Nz*(0.9d0/mu))
+   Nzcut = int(Nz*(1.0d0/mu)) -1 
  
 !!!!!!!!!!!!!!!!!!!!!!!!!!!
    zgrid(1)=0.0d0
