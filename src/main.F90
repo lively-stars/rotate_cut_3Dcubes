@@ -65,10 +65,29 @@
   integer, parameter :: points_to_add = 110
   integer offsetg 
   logical refinement
-  
+ 
+
+! -----  differenr interpolations 
+  integer n_zpoints, n_additional_z
+  integer final_refined_z , start_zrefine, stop_zrefine
+  logical interpolate_geometric
+  logical logarithm_interp
+! ---- DEBUG 
+  integer :: count_debug 
+
+
 !--- functions -----------------------------------------------!  
   real(kind=8) introssk
   integer      map1
+
+! -----------------------
+
+  interpolate_geometric = .false.
+  n_zpoints = 6
+  n_additional_z = 9
+
+  logarithm_interp = .false.
+
 
 
 ! ---  SET UP CALCULATIONS: -----------------------------------!  
@@ -139,7 +158,7 @@
     dx = dy 
   endif 
 
-
+  if (interpolate_geometric) Nz_extended = Nz + (n_zpoints*n_additional_z)
 
 !---- for tau - integration we do not need the whole depth of the cube
 !--- set depth of temporary arrays
@@ -150,6 +169,8 @@
 ! ---- for mu < 0.9!
 
     Nzcut = Nz
+    if (interpolate_geometric) Nzcut = Nz_extended
+
     if (ifmu)   Nzcut = int(Nz*(1.0d0/mu))-1 
     if (.not. ifmu) mu = 1.0
 
@@ -163,8 +184,15 @@
   read(2,*) numt, numpres
 
 !----- allocate  arrays
+  if (interpolate_geometric) then
+   call set_arrays(Nx, Ny, Nz_extended, Nzcut, numt, numpres)
 
-  call set_arrays(Nx, Ny, Nz, Nzcut, numt, numpres)
+  else
+
+    call set_arrays(Nx, Ny, Nz, Nzcut, numt, numpres)
+  endif
+
+
   if (gettaug) call set_tarrays(Nx, Ny, Ngrid)
 
 !---- read in the kappa table 1 :
@@ -377,6 +405,76 @@
 ! ----- NOTE:       in this place the tau is calculated, now if we rotate, then it is the tau Rosseland
 !-------            if there is no rotation, then it is the higher tau opacity in the UV.
 !-------            if the first is true, and the second needs to be done, the another kappa-table need to be read later and applied. 
+
+
+! ---- NOW we need to also setup the new refinded zgrid and interpolate the cubes onto that! 
+
+   if (interpolate_geometric) then
+     dz_fine = dz/(n_additional_z + 1)
+
+! set up zgrid_extended : 
+     start_zrefine = 86
+     stop_zrefine = start_zrefine + n_zpoints
+     final_refined_z = start_zrefine+(n_zpoints*(n_additional_z + 1))
+
+     zgrid_extended(1:start_zrefine ) = zgrid(1:start_zrefine)
+     do i = start_zrefine+1, final_refined_z
+         zgrid_extended(i) = zgrid_extended(i-1) + dz_fine
+     end do
+
+     zgrid_extended(final_refined_z :Nz_extended) = zgrid(stop_zrefine:Nz)
+
+
+! DEBUG 
+!     print*, 'extended grid start,stop : ', zgrid_extended(1), zgrid_extended(Nz_extended)
+!   print*, ' old zgrid = ', zgrid
+!   print*, ' new zgrid = ', zgrid_extended
+
+!   stop 
+!  interpolate all needed quantities onto that: 
+      do i = 1, Nx
+        do k =  1, Ny
+            do j = 1, Nz
+
+             tempt(j) = T(i,k,j)
+             tempp(j) = P(i,k,j)
+             tempr(j) = rho(i,k,j)
+#ifdef VELO
+             tempv(j) = Vtot(i,k,j)
+
+#endif 
+            end do
+! ----       
+
+            indum = map1(zgrid,  tempt, Nz, zgrid_extended, temp_iterate, Nz_extended)
+            T(i,k,1:Nz_extended) = temp_iterate(1:Nz_extended)
+
+
+            indum = map1(zgrid,  tempp, Nz, zgrid_extended, temp_iterate, Nz_extended)
+            P(i,k,1:Nz_extended) = temp_iterate(1:Nz_extended)
+
+            indum = map1(zgrid,  tempr, Nz, zgrid_extended, temp_iterate, Nz_extended)
+            rho(i,k,1:Nz_extended) = temp_iterate(1:Nz_extended)
+
+#ifdef VELO
+            indum = map1(zgrid,  tempv, Nz, zgrid_extended, temp_iterate, Nz_extended)
+            Vtot(i,k,1:Nz_extended) = temp_iterate(1:Nz_extended)
+#endif
+
+
+        end do
+      end do
+
+      print*, 'count_debug = ', count_debug
+! now set Nz = Nz_extended and zgrid = zgrid_extended so that the remaining part does not notice any changes! 
+
+      Nz = Nz_extended
+      zgrid = zgrid_extended
+
+
+   endif
+
+
 
 
 ! ---if we only need the format to be changed, not calculations are needed except
