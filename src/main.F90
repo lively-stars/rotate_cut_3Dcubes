@@ -150,7 +150,7 @@
 ! ---- for mu < 0.9!
 
     Nzcut = Nz
-    if (ifmu)   Nzcut = int(Nz*(1.0d0/mu))-1 
+    if (ifmu)   Nzcut = int((Nz-1)*(1.0d0/mu)) 
     if (.not. ifmu) mu = 1.0
 
 

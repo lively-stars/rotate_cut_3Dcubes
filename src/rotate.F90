@@ -24,8 +24,8 @@
    theta = acos(mu)
    pivotdx = tan(theta) * pivot
    newdx = dz * sin(theta)
-   Nzcut = int(Nz*(1.0d0/mu)) -1 
- 
+   Nzcut = int((Nz-1)*(1.0d0/mu))  
+   print*, 'Nzcut = ', Nzcut  
 !!!!!!!!!!!!!!!!!!!!!!!!!!!
    zgrid(1)=0.0d0
    do k=2,Nzcut
