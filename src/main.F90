@@ -1,5 +1,21 @@
  program cube_taucalc 
+! ----- This routine reads the cube (in various formats, but for the lates implementations of velocity and magnetic fields, only
+! ----- the format .nc is supported) and rotates it for different mu angles  and if needed interpolates it onto a pre-defined
+! ----- rosseland grid. The gird is contructed from the staring log(tau), the equidistant log(tau) step and the final log(tau)
+! ----- provided in the INPUT file. If a refined grid around the optical surface is needed, it can be switch on in the code by
+! ----- setting the logical flag 'refinement' = .true.. The refinment parameters can be changed in the definied parameters further
+! ----- below. 
 
+! ----- The code reads the cube, checks if it need to be swaped up-side-down (such that the grid stars from top pointing to the
+! -----  bottom). It calculates the pivot point for rotation if NOT set in the INPUT file using the mean optical surface depth. 
+! ------ Then it rotates the cube, and if needed interpolates it. 
+! ------------------------------------------------------------------------------
+
+! ---- IO - options
+! ----- if Atlas format is needed, it writes out the atmospheres subsequently in fort.* files (number of files is set with setting
+! ----- sizee.  
+! ----- if no atlas format is needed it write out the calculated quantiteis in .nc files (separatly). 
+! ----- ------------------------------------------------------------------------------------------------------
   use initcalc  
   use arrays
   use io_cubes
@@ -42,23 +58,28 @@
   parameter( Ngridmax = 256)
    
   real(kind=8) maxz, tau1lg, step, tau2lg
+!  ---- parameters for a refined gird, where 110 points are added:
   real(kind=8), parameter::  tauint1 =-0.1
   real(kind=8), parameter::  tauint2 =1.0
   real(kind=8), parameter::  step2 = 0.01 
+  integer, parameter :: points_to_add = 110
   integer offsetg 
+  logical refinement
   
 !--- functions -----------------------------------------------!  
   real(kind=8) introssk
   integer      map1
 
 
+! ---  SET UP CALCULATIONS: -----------------------------------!  
+  refinement = .false.
 
 
 !       filename='result_0.120000.fits'
 !       folder='/scratch/yeo/SATIRE3D/D000/snapshots/'
     read(*,*) folder
     read(*,*) filenumber
-    sizee = 4
+    sizee = 1
     myrank = 0  
     nproc = 1 
 !----------------------------------------------------------------
@@ -69,7 +90,8 @@
     print*, ' that the pivot point =', pivot_in 
 
     if (gettaug) then 
-     Ngrid  = int((tau2lg - tau1lg)/step) +111
+     Ngrid  = int((tau2lg - tau1lg)/step) +1
+     if (refinement) ngrid = ngrid + 1 + points_to_add 
      if (Ngrid .gt. Ngridmax) then 
         print*,' Tau grid configuration results in too many points; Ngrid =', Ngrid 
         print*, ' Application will be aborted ' 
@@ -121,17 +143,15 @@
 
 !---- for tau - integration we do not need the whole depth of the cube
 !--- set depth of temporary arrays
-   
-   if (ifmu ) then  
-      Nzcut = Nz
-      if (mu .le. 0.9)  Nzcut = int(Nz * (0.9d0/mu))
+! 
 
-   else
-     mu = 1.0
-     Nzcut = Nz 
-   endif 
+! ---- when rotation is done, we need more points to keep the equidistant spacing the same. 
+! ---- However, later one we only write out (it no interpolation was done) 90% of the points 
+! ---- for mu < 0.9!
 
-
+    Nzcut = Nz
+    if (ifmu)   Nzcut = int((Nz-1)*(1.0d0/mu)) 
+    if (.not. ifmu) mu = 1.0
 
 
 
@@ -350,10 +370,6 @@
 
 !----- if the cube needs to be rotated, we need the pivot point
     
-   if (ifmu) then 
-! this is because we need to calculate the tau rosseland on the actual cube, and Nz < Nzcut 
-     Nzcut = Nz 
-   endif 
 
 !----  ------------------------------------------------------------! 
 !---  GET rays from top inwards and calculate TAU -----------------! 
@@ -370,6 +386,12 @@
 
  if (.not. nocalc) then 
 
+
+
+! ---- First we need to calculate the tau_rosseland on the actual cube to find the pivot point or for later interpolation purpose. 
+! ---- Here we use Nz ! 
+
+
     summean = 0.0d0 
     onepoint = 1.0d0 
     meanzt = 0.0d0 
@@ -378,7 +400,7 @@
 
       do i = 1, Nx
         do k =  1, Ny
-            do j = 1, Nzcut
+            do j = 1, Nz
 
              tempt(j) = T(i,k,j)
              tempp(j) = P(i,k,j)
@@ -389,15 +411,9 @@
 
             end do
 ! inegrate to get tau
-         call integ(zgrid,kappa,taut,Nzcut,(kappa(1)*zgrid(1)))
-!--- note that the cube has its top at Nz, and we integrated from top inwards, 
-! --- but for convenience we store the tau array having its top at 1
-         taur(i, k, 1:Nzcut) = taut(1:Nzcut)
-!            do j = 1, Nzcut
-!             write(71,*) taut(1), taut(Nzcut)
-!              write(71,*) tempt(j), tempp(j), tempr(j),  taut(j) 
-!            end do 
-         indum = map1(taut, zgrid, Nzcut, onepoint, meanzt, 1 ) 
+         call integ(zgrid,kappa,taut,Nz,(kappa(1)*zgrid(1)))
+         taur(i, k, 1:Nz) = taut(1:Nz)
+         indum = map1(taut, zgrid, Nz, onepoint, meanzt, 1 ) 
 
          summean = summean + meanzt
          ! write(71,*) meanzt 
@@ -421,10 +437,6 @@
      endif 
 
 !---- after rotation was performed, the arrays are stored in newT, newP, newrho!
-! okey so now we actually have Nzcut points in the vertical direction
-     Nzcut = Nz
-     if (mu .le. 0.9) Nzcut = int(Nz* (0.9d0/mu)) 
-!
      print*,  'Finished rotation' 
 
    endif 
@@ -436,21 +448,29 @@
    
     print*, ' Start to set up tau-grid onto which to interpolate' 
 !   --- get up taugrid 
-!   in three steps
-    Ngrid  = int((tauint1 - tau1lg)/step)
-    offsetg = ngrid +1 
-    do i = 1, ngrid 
-     taugrid(i) = tau1lg+(i-1)*step
-    end do 
-    ngrid = int((tauint2 - tauint1)/step2)
-    do i = offsetg, ngrid+offsetg-1
-      taugrid(i) = taugrid(i-1) + step2
-    end do  
-    offsetg = ngrid+offsetg
-    ngrid = int((tau2lg - tau1lg)/step) +111 
-    do i = offsetg, ngrid
-      taugrid(i) = taugrid(i-1) + step
-    end do   
+
+    if (refinement ) then
+!    make a grid that is refined around optical surface in three steps
+       ngrid  = int((tauint1 - tau1lg)/step)
+       offsetg = ngrid +1
+       do i = 1, ngrid 
+        taugrid(i) = tau1lg+(i-1)*step
+       end do 
+       ngrid = int((tauint2 - tauint1)/step2)
+       do i = offsetg, ngrid+offsetg-1
+         taugrid(i) = taugrid(i-1) + step2
+       end do
+       offsetg = ngrid+offsetg
+       ngrid = int((tau2lg - tau1lg)/step) +1 + points_to_add 
+       do i = offsetg, ngrid
+         taugrid(i) = taugrid(i-1) + step
+       end do   
+    
+    else ! normal taugrid setup
+      do i = 1, ngrid
+        taugrid(i) = tau1lg+(i-1)*step
+      end do 
+    endif   
    
     do i =1, ngrid
       taugrid(i) = 10**(taugrid(i))
@@ -678,6 +698,9 @@
 
        else  
          Nzz = Nzcut
+         ! only write out 90 % of the points! 
+         ! for mu < 0.9 
+         if (mu .lt. 0.9) Nzz = int(0.9*Nzcut) 
 
          do i = 1, Nx
           do k = 1,  Ny
@@ -784,6 +807,8 @@
 ! write new NetCDF file for bv and tau_ross
         Nzz = Nz
         if(ifmu) Nzz = Nzcut
+        if (mu .lt. 0.9) Nzz = int(Nzz*0.9)
+
 
 
        

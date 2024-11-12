@@ -9,7 +9,6 @@ FFLAGS = "-c -traceback -no-wrap-margin  -heap-arrays -check bounds"
 
 
 # NETCDF library routines
-# NETCDF library routines
 NFDIR="/mpcdf/soft/SLE_15/packages/skylake/netcdf-mpi/intel_19.1.3-19.1.3-impi_2019.9-2019.9.304/4.4.1/"
 INCLUDE="-I${NFDIR}/include"
 NETCDFLIB="-L../netcdf -lnet  -L${NFDIR}/lib -lnetcdff "
