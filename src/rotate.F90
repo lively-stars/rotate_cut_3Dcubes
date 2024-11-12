@@ -113,7 +113,7 @@
 
    real(kind=8), intent(in) :: mu, pivot, dx, dy, dz
    real(kind=8)  theta, pivotdx, pivotdy,  newdy, newy, newz
-   real(kind=8) phi , pi_n, cosphi, costheta 
+   real(kind=8) phi , pi_n, sinphi, sintheta 
    real(kind=8)  newdx, newx
 
    real(kind=8)   z_f,  y_f, x_f
@@ -122,19 +122,22 @@
    zold = 0.0d0
    znew = 0.0d0
 
-   pi_n = 4.0*atan(1.d0)
-   phi = pi_n/180.0d0*phi
-   cosphi = cos(phi) 
-   costheta = cos(theta)
-   if (abs(cosphi) .lt. 1.0d-10) cosphi = 0.0d0
-   if (abs(costheta) .lt. 1.0d-10) costheta = 0.0d0
 
    theta = acos(mu)
-   pivotdy = 0.d0  ! tan(theta) * pivot * cosphi
-   pivotdx = 0.d0 ! tan(theta) * pivot *sin(phi) 
+   pi_n = 4.0*atan(1.d0)
+   phi = pi_n/180.0d0*phi
 
-   newdy = dz * sin(theta) *cosphi
-   newdx = dz *costheta*sin(phi)
+   sinphi = sin(phi) 
+   sintheta = sin(theta)
+   if (abs(sinphi) .lt. 1.0d-10) sinphi = 0.0d0
+   if (abs(sintheta) .lt. 1.0d-10) sintheta = 0.0d0
+
+
+   pivotdy = tan(phi) * pivot 
+   pivotdx = tan(theta) * pivot  
+
+   newdy = dz *sinphi
+   newdx = dz *sintheta
 
 
    print*, ' pivotdy, newdy ', pivotdy, newdy
