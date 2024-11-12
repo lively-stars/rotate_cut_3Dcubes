@@ -1,5 +1,5 @@
 !--- control file for calculations : 
-5      !--1 is binary, 2 is mpi read, 3 is fits files
+5      !--1 is binary, 2 is mpi read, 3 is fits files 5 -nc files s
 1      ! rotation on/ off (1/ 0 )
 0.2    ! viewing angle mu
 0      ! calculate tau200 on/off
