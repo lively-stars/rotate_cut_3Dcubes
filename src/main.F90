@@ -349,7 +349,21 @@
      Vtot = temparr 
      temparr = 0.0
 #endif 
+#ifdef MAGNETIC
+      call swap_cube(Bx, nx, ny, nz, 3, temparr)
+     Bx = temparr  
+     temparr = 0.0
 
+      call swap_cube(By, nx, ny, nz, 3, temparr)
+     By = temparr  
+     temparr = 0.0
+
+      call swap_cube(Bz, nx, ny, nz, 3, temparr)
+     Bz = temparr  
+     temparr = 0.0  
+
+
+#endif 
 
    endif 
  
