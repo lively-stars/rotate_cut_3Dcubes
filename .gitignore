@@ -2,3 +2,7 @@
 *.o
 *.a
 *.x
+./bin/*.exe
+./bin/INPUT
+./netcdf/*.o
+./netcdf/*.a
