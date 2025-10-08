@@ -501,7 +501,7 @@
          taur(i, k, 1:Nzcut) = taut(1:Nzcut)
          tempa = 0.0d0
 !        now  interpolate
-
+#ifdef OLDINTERP
            indum = map1(taut, tempt, Nzcut, taugrid, tempa, Ngrid)
            outT(i,k,1:Ngrid) = tempa(1:Ngrid)
 
@@ -521,6 +521,30 @@
 
 #endif 
 
+#else  
+           call bezier3(taut, tempt, Nzcut, taugrid, tempa, Ngrid)
+           outT(i,k,1:Ngrid) = tempa(1:Ngrid)
+         
+           call bezier3(taut, tempp, Nzcut, taugrid, tempa, Ngrid)
+           outP(i,k,1:Ngrid) = tempa(1:Ngrid)
+      
+! here we map column mass instead of rho
+     
+           call  bezier3(taut, tempc, Nzcut, taugrid, tempa, Ngrid)
+           outrho(i,k,1:Ngrid) = tempa(1:Ngrid)
+
+           call  bezier3(taut, zgrid, Nzcut, taugrid, tempa, Ngrid)
+           outz(i,k,1:Ngrid) = tempa(1:Ngrid)
+#ifdef VELO  
+           call  bezier3(taut, tempv, Nzcut, taugrid, tempa, Ngrid)
+           outV(i,k,1:Ngrid) = tempa(1:Ngrid)
+     
+#endif 
+
+
+
+
+#endif 
 
         end do
       end do
@@ -545,7 +569,9 @@
             tempa = 0.0d0
 
             call integ(zgrid,tempr,tempc,Nzcut,(tempr(1)*zgrid(1)))
-!        now  interpolate
+!        now  interpolate: 
+
+#ifdef OLDINTERP
            indum = map1(taut, tempt, Nzcut, taugrid, tempa, Ngrid)
            outT(i,k,1:Ngrid) = tempa(1:Ngrid)
 
@@ -558,9 +584,30 @@
            indum = map1(taut, zgrid, Nzcut, taugrid, tempa, Ngrid)
            outz(i,k,1:Ngrid) = tempa(1:Ngrid)
 #ifdef VELO
-
            indum = map1(taut, tempv, Nzcut, taugrid, tempa, Ngrid)
            outV(i,k,1:Ngrid) = tempa(1:Ngrid)
+#endif 
+#else 
+
+           call  bezier3(taut, tempt, Nzcut, taugrid, tempa, Ngrid)
+           outT(i,k,1:Ngrid) = tempa(1:Ngrid)
+           
+           call  bezier3(taut, tempp, Nzcut, taugrid, tempa, Ngrid)
+           outP(i,k,1:Ngrid) = tempa(1:Ngrid)
+! here we map column mass instead of rho
+           call  bezier3(taut, tempc, Nzcut, taugrid, tempa, Ngrid)
+           outrho(i,k,1:Ngrid) = tempa(1:Ngrid)
+
+           call  bezier3(taut, zgrid, Nzcut, taugrid, tempa, Ngrid)
+           outz(i,k,1:Ngrid) = tempa(1:Ngrid)
+#ifdef VELO
+           call  bezier3(taut, tempv, Nzcut, taugrid, tempa, Ngrid)
+           outV(i,k,1:Ngrid) = tempa(1:Ngrid)
+#endif 
+
+
+
+
 
 #endif 
        end do 
@@ -1190,5 +1237,81 @@
    end
 !
 !*********** E N D   O F   F U N C T I O N   M A P 1 ********************
+
+  subroutine bezier3(x, y,n, xp, yp, np)
+    Implicit None
+    Integer :: n, np, k
+    Real(8), dimension(n) :: x, y
+    Real(8), dimension(np) :: xp, yp
+    Real(8) :: c1, c2, yprime(n), dx, u(np), mmi, mma
+
+
+    c1 = 0
+    c2 = 0
+    yprime = 0
+    !
+    ! Compute derivatives 
+    !
+    call cent_deriv(n, x, y, yprime)
+    !
+    do k = 2, n
+       dx =  x(k) - x(k-1)
+
+       c1 = y(k-1) + dx * yprime(k-1) / 3.0d0
+       c2 = y(k) - dx * yprime(k) / 3.0d0
+
+       mmi = min(y(k),y(k-1))
+       mma = max(y(k),y(k-1))
+       if(c1 .LT. mmi .OR. c1 .GT. mma) c1 = y(k-1)
+       if(c2 .LT. mmi .OR. c2 .GT. mma) c2 = y(k)
+
+       where(xp .LT. x(k) .AND. xp .GE. x(k-1))
+          u = (xp - x(k-1)) / dx
+          yp = y(k-1) * (1.d0 - u)**3 + y(k) * u**3 + &
+               3.d0 * c1 * u * (1.d0 - u)**2 + 3.0d0 * c2 * u**2 * (1.0d0 - u)
+       End where
+
+    end do
+
+    !
+    ! Points outside the domain
+    !
+    where(xp .GE. x(n))
+       yp = y(n)
+    end where
+    where(xp .LE. x(1))
+       yp = y(1)
+    end where
+  end subroutine bezier3
+
+
+
+    subroutine cent_deriv(n,x,y,yp)
+    Implicit None
+    integer :: n, k
+    Real (8) :: x(n), y(n)
+    real(8) :: der, der1, lambda, yp(n), dx , dx1
+
+    do k = 2, n - 1
+       dx = x(k) - x(k-1)
+       der = (y(k) - y(k-1)) / dx
+
+       dx1 = x(k+1) - x(k)
+       der1 = (y(k+1) - y(k)) / dx1
+
+       if(der*der1 .gt. 0.0d0) then
+          lambda = (1.d0 + dx1 / (dx1 + dx)) / 3.d0
+          yp(k) = (der / (lambda * der1 + (1.d0 - lambda) * der)) * der1
+       Else
+          yp(k) = 0.0d0
+       end if
+    enddo
+
+    yp(1) =  (y(1) - y(2)) / (x(1) - x(2))
+    yp(n) = (y(n-1) - y(n)) / (x(n-1) - x(n))
+
+    return
+  end subroutine cent_deriv
+
 
 
