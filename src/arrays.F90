@@ -40,7 +40,7 @@ real(kind=4), allocatable :: outV(:,:,:),  Vx(:,:,:), Vz(:,:,:), Vtot(:,:,:), ne
 real(kind=8), allocatable :: tempv(:)  
 #endif 
 #ifdef MAGNETIC
-real(kind=4), allocatable :: Bx(:,:,:), By(:,:,:), Bz(:,:,:)
+real(kind=4), allocatable :: Bx(:,:,:), By(:,:,:), Bz(:,:,:), Bxtot(:,:,:), Bztot(:,:,:)
 real(kind=4), allocatable :: outBz(:,:,:), outBy(:,:,:), outBx(:,:,:), newBx(:,:,:), newBy(:,:,:), newBz(:,:,:) 
 real(kind=8), allocatable :: tempbx(:), tempby(:), tempbz(:)
 #endif
@@ -92,6 +92,10 @@ real(kind=8), allocatable :: tempbx(:), tempby(:), tempbz(:)
  Bx = 0.0
  By = 0.0
  Bz = 0.0
+ allocate(Bxtot(nx, ny, nz))
+ allocate(Bztot(nx, ny, nz))
+ Bxtot =0.0
+ Bztot = 0.0
  allocate(newBx(nx, ny, nycut))
  allocate(newBy(nx, ny, nycut))
  allocate(newBz(nx, ny, nycut))
@@ -228,7 +232,10 @@ real(kind=8), allocatable :: tempbx(:), tempby(:), tempbz(:)
   deallocate(tempv)
 
 #endif 
-
+#ifdef MAGNETIC 
+  deallocate(Bxtot)
+  deallocate(Bztot)
+#endif 
 
  end subroutine close_arrays 
 

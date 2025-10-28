@@ -317,11 +317,24 @@
     do j = 1, Ny
       do i = 1, Nx
         do k = 1, Nz
+#ifdef MAGNETIC
+          Bztot(i,j,k) = mu*Bz(i,j,k) - smu*Bx(i,j,k)      
+          Bxtot(i,j,k) = mu*Bx(i,j,k) + smu*Bz(i,j,k) ! Double-check! 
+#endif 
           Vtot(i,j,k) = mu*Vz(i,j,k) - smu*Vx(i,j,k)
         enddo
       enddo
     enddo
    endif
+#ifdef MAGNETIC
+   Bx = Bxtot
+   Bz = Bztot
+
+#endif 
+
+
+
+
 
 #endif 
 
